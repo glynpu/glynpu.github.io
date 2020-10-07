@@ -38,3 +38,5 @@ tag: kaldi
    
 6. (模型的collapse)[https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-utils.cc#L1468]  
    (调用处)[https://github.com/kaldi-asr/kaldi/blob/bcd163c5ae45a9dcc488c86e98281649b8156529/src/nnet3bin/nnet3-latgen-faster.cc#L102] --> (collapse 函数)[https://github.com/kaldi-asr/kaldi/blob/bcd163c5ae45a9dcc488c86e98281649b8156529/src/nnet3/nnet-utils.cc#L2116:1]
+
+7. 前向运算 Nnet --> (CachingOptimizingCompiler)[https://github.com/kaldi-asr/kaldi/blob/bcd163c5ae45a9dcc488c86e98281649b8156529/src/nnet3bin/nnet3-latgen-faster.cc#L132] --> (DecodableAmNnetSimple)[https://github.com/kaldi-asr/kaldi/blob/bcd163c5ae45a9dcc488c86e98281649b8156529/src/nnet3bin/nnet3-latgen-faster.cc#L174]
