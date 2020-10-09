@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 学习资源
+title: 英语学习资源
 date:   2020-10-07 14:05:00 +0800
 <!-- categories: english -->
 tag: english
@@ -9,4 +9,7 @@ tag: english
 * content
 {:toc}
 
+oral
+=
 [echo method](/htmls/echo_method/eng/index.html)[原始链接](http://homepage.ntu.edu.tw/~karchung/miniconversations/MC.htm)
+
