@@ -12,4 +12,5 @@ tag: english
 oral
 =
 [echo method](/htmls/echo_method/eng/index.html)[原始链接](http://homepage.ntu.edu.tw/~karchung/miniconversations/MC.htm)
+[圆锥曲线有关的词根](https://www.zhihu.com/question/20854993)
 
