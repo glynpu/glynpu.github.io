@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  kaldi 特征到文字的转换过程
-date:   2019-05-21 23:05:00 +0800
+date:   2020-10-07 23:05:00 +0800
 categories: kaldi
 tag: kaldi
 ---
@@ -15,113 +15,153 @@ fbank/mfcc feature 到最终生成文字主要有三大模块在起作用
 下面以kaldi/src/nnet3bin/nnet3-latgen-faster.cc为例分析asr的流程：  
 其总体框架为tdnn am  +  fst lm + lattice-faster-decoder
 
-
-[加载am nnet](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3bin/nnet3-latgen-faster.cc#L99)  
+在am-nnet am 和解码图加载完毕后，调用[DecodeUtteranceLatticeFaster](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/nnet3bin/nnet3-latgen-faster.cc#L180)进行解码：  
 ```
-    TransitionModel trans_model;
-    AmNnetSimple am_nnet;
-    {
-      bool binary;
-      Input ki(model_in_filename, &binary);
-      trans_model.Read(ki.Stream(), binary);
-	  // 这个函数读入模型，重点在于为components_和nodes_赋值
-      am_nnet.Read(ki.Stream(), binary);
-      SetBatchnormTestMode(true, &(am_nnet.GetNnet()));
-      SetDropoutTestMode(true, &(am_nnet.GetNnet()));
-      CollapseModel(CollapseModelConfig(), &(am_nnet.GetNnet()));
-    }
-```
+          DecodableAmNnetSimple nnet_decodable(
+              decodable_opts, trans_model, am_nnet,
+              features, ivector, online_ivectors,
+              online_ivector_period, &compiler);
 
-[kaldi::nnet3::Nnet部分成员变量，这些成员变量都是在Read函数执行过程中赋值](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-nnet.h#L333)
-
-```
-  // the names of the components of the network.  Note, these may be distinct
-  // from the network node names below (and live in a different namespace); the
-  // same component may be used in multiple network nodes, to define parameter
-  // sharing.
-  std::vector<std::string> component_names_;
-
-  // the components of the nnet, in arbitrary order.  The network topology is
-  // defined separately, below; a given Component may appear more than once in
-  // the network if necessary for parameter tying.
-  // 注意components_是Component*的vector, 即其中每一个成员都是一个指针
-  // 该指针指向一个Component
-  // 问： 为什么一个网络的所有component都用Component指针去指向, 难道它们都是一个类型？(解释见下文)
-  std::vector<Component*> components_;
-
-  // names of network nodes, i.e. inputs, components and outputs, used only in
-  // reading and writing code.  Indexed by network-node index.  Note,
-  // components' names are always listed twice, once as foo-input and once as
-  // foo, because the input to a component always gets its own NetworkNode index.
-  std::vector<std::string> node_names_;
-
-  // the network nodes of the network.
-  std::vector<NetworkNode> nodes_;
-
-
+          double like;
+		  // 该函数是一个模版函数，数据类型参数为构建decoder时的FST类型
+          if (DecodeUtteranceLatticeFaster(
+                  decoder, nnet_decodable, trans_model, word_syms, utt,
+                  decodable_opts.acoustic_scale, determinize, allow_partial,
+                  &alignment_writer, &words_writer, &compact_lattice_writer,
+                  &lattice_writer,
+                  &like)) {
+            tot_like += like;
+            frame_count += nnet_decodable.NumFramesReady();
+            num_success++;
+          } else num_fail++;
+        }
 ```
 
+[DecodeUtteranceLatticeFaster函数会调用decoder的成员函数Decode](https://github.com/kaldi-asr/kaldi/blob/885dc04bf59a2ea1f4b6777b5ab7915c7dfc4d11/src/decoder/decoder-wrappers.cc#L287:6)  
 
-[am_nnet.Read函数实现](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/nnet3/nnet-nnet.cc#L586)  
 ```
-  // Now we read the Components; later we try to parse the config_lines.
-  ExpectToken(is, binary, "<NumComponents>");
-  int32 num_components;
-  // 欲载入的模型的componnet的数目是在文件中直接指明的，
-  // 所以components_可以直接resize到目标大小, 即留够num_components个位置
-  ReadBasicType(is, binary, &num_components);
-  KALDI_ASSERT(num_components >= 0 && num_components < 100000);
-  components_.resize(num_components, NULL);
-  component_names_.resize(num_components);
-  for (int32 c = 0; c < num_components; c++) {
-    ExpectToken(is, binary, "<ComponentName>");
-    ReadToken(is, binary, &(component_names_[c]));
-	// 问： 每一个componet的加载方式不同，比如affine component 的参数和batchnorm component完全不同，为什么Component::ReadNew函数总是能够找到合适的加载方式？
-    components_[c] = Component::ReadNew(is, binary);
+  if (!decoder.Decode(&decodable)) {
+    KALDI_WARN << "Failed to decode utterance with id " << utt;
+    return false;
   }
-  ExpectToken(is, binary, "</Nnet3>");
-  std::istringstream config_file_in(config_file_out.str());
-  this->ReadConfig(config_file_in);
 
 ```
 
-
-
-
-
-
-// 问： 为什么一个网络的所有component都用Component指针去指向, 难道它们都是一个类型？(解释见下文)  
-// 问： 每一个componet的加载方式不同，比如affine component 的参数和batchnorm component完全不同，为什么Component::ReadNew函数总是能够找到合适的加载方式？  
-
-解： Component 类是RestrictedAttentionComponent StatisticsExtractionComponent 等其他人所有componet的基类，基类的指针可以指向所有子类的对象.  
-[Component::ReadNew](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-component-itf.cc#L84)函数首先确定componet的类别(代码中的token), 再调用[Component::NewComponentOfType](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-component-itf.cc#L98)定义具体的子类对象. 其中NewComponentOfType是一个dispatch 函数， 写一串 if else 判断token的值，进而生成对应类型的对象  
-
-[Component::ReadNew函数](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-component-itf.cc#L84)  
-
+其中传入的decoder 类型[LatticeFasterDecoderTps是一个typedef](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/decoder/lattice-faster-decoder.h#L522:1)
 ```
-// static
-Component* Component::ReadNew(std::istream &is, bool binary) {
-  // 解析当前component的类型，赋值给token
-  std::string token;
-  ReadToken(is, binary, &token); // e.g. "<SigmoidComponent>".
-  token.erase(0, 1); // erase "<".
-  token.erase(token.length()-1); // erase ">".
-  // 根据token的值定义具体的子类component对像，并复制给基类Component的指针ans
-  Component *ans = NewComponentOfType(token);
-  if (!ans)
-    KALDI_ERR << "Unknown component type " << token;
-  // 由基类指针ans 调用子类的Read函数，不出意外的化，该Read函数一定是一个虚函数
-  ans->Read(is, binary);
-  return ans;
+typedef LatticeFasterDecoderTpl<fst::StdFst, decoder::StdToken> LatticeFasterDecoder;
+```
+
+所以decoder.Decode函数其实是[模版类LatticeFasterDecoderTpl的成员函数Decode](https://github.com/kaldi-asr/kaldi/blob/master/src/decoder/lattice-faster-decoder.cc#L79)  
+```
+template <typename FST, typename Token>
+bool LatticeFasterDecoderTpl<FST, Token>::Decode(DecodableInterface *decodable) {
+  InitDecoding();
+  // We use 1-based indexing for frames in this decoder (if you view it in
+  // terms of features), but note that the decodable object uses zero-based
+  // numbering, which we have to correct for when we call it.
+  AdvanceDecoding(decodable);
+  FinalizeDecoding();
+
+  // Returns true if we have any kind of traceback available (not necessarily
+  // to the end state; query ReachedFinal() for that).
+  return !active_toks_.empty() && active_toks_.back().toks != NULL;
 }
 ```
-
-[正如预料Component::Read函数确实是一个虚函数](https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-component-itf.h#L628)  
+其中主要的解码过程集中在[AdvanceDecoding](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/decoder/lattice-faster-decoder.cc#L580),其内部的while循环一直持续到解码出预期的frames位置:  
 ```
-  /// We implement Read at this level as it just needs the Type().
-  virtual void Read(std::istream &is, bool binary);
+  if (max_num_frames >= 0)
+    target_frames_decoded = std::min(target_frames_decoded,
+                                     NumFramesDecoded() + max_num_frames);
+  while (NumFramesDecoded() < target_frames_decoded) {
+    if (NumFramesDecoded() % config_.prune_interval == 0) {
+      PruneActiveTokens(config_.lattice_beam * config_.prune_scale);
+    }
+    BaseFloat cost_cutoff = ProcessEmitting(decodable);
+    ProcessNonemitting(cost_cutoff);
+  }
+
 ```
 
-* content
-{:toc}
+上述while循环中每次循环消耗一个frame的acoustic 输入.   
+其中[ProcessEmitting](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/decoder/lattice-faster-decoder.cc#L714)函数对应解码图上输入不为空的跳转,[消耗一个acoustic frame](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/decoder/lattice-faster-decoder.cc#L752);  
+```
+    for (fst::ArcIterator<FST> aiter(*fst_, state);
+         !aiter.Done();
+         aiter.Next()) {
+      const Arc &arc = aiter.Value();
+	  // arc.ilabel != 0 即当前输入label不为空
+      if (arc.ilabel != 0) {  // propagate..
+		  // 注意decodable->LogLikelihood即消耗了一个acoustic frame
+        BaseFloat new_weight = arc.weight.Value() + cost_offset -
+            decodable->LogLikelihood(frame, arc.ilabel) + tok->tot_cost;
+        if (new_weight + adaptive_beam < next_cutoff)
+          next_cutoff = new_weight + adaptive_beam;
+      }
 
+```
+[ProcessNonemitting](https://github.com/kaldi-asr/kaldi/blob/3ce241b4ff1838d530e54b1aea9585c1493ee9f8/src/decoder/lattice-faster-decoder.cc#L820)对应输入为空的跳转(扩大当前token的数目),不消耗acoustic frame
+```
+  // 注意queue_的用处
+  // queue_可以用来处理连续多个跳转的输入都是空的情况
+  // 每次空跳转产生的tok都塞到queue_里，即队列的尾部，
+  // 随着依次出队，新的tok会被判断是否含有空跳转
+  // 有一点广度优先遍历的感觉
+	
+  // 双重循环，第一重循环是不断的出队,
+  // 因为队列在循环的过程中不断的增加/删除元素，不确定由多少个元素
+  // 所以用while 循环
+  while (!queue_.empty()) {
+    const Elem *e = queue_.back();
+    queue_.pop_back();
+
+    StateId state = e->key;
+    Token *tok = e->val;  // would segfault if e is a NULL pointer but this can't happen.
+    BaseFloat cur_cost = tok->tot_cost;
+    if (cur_cost >= cutoff) // Don't bother processing successors.
+      continue;
+    // If "tok" has any existing forward links, delete them,
+    // because we're about to regenerate them.  This is a kind
+    // of non-optimality (remember, this is the simple decoder),
+    // but since most states are emitting it's not a huge issue.
+    DeleteForwardLinks(tok); // necessary when re-visiting
+    tok->links = NULL;
+	// 对于特定的解码图,每个state有多少个跳转是确定的
+	// 所以用for 循环
+    for (fst::ArcIterator<FST> aiter(*fst_, state);
+         !aiter.Done();
+         aiter.Next()) {
+      const Arc &arc = aiter.Value();
+	  // 注意此处和ProcessEmiting函数的区别
+      if (arc.ilabel == 0) {  // propagate nonemitting only...
+        BaseFloat graph_cost = arc.weight.Value(),
+			// 注意此处没有am cost
+			// 即decodable->LogLikelihood
+            tot_cost = cur_cost + graph_cost;
+        if (tot_cost < cutoff) {
+          bool changed;
+
+          Elem *e_new = FindOrAddToken(arc.nextstate, frame + 1, tot_cost,
+                                          tok, &changed);
+
+          tok->links = new ForwardLinkT(e_new->val, 0, arc.olabel,
+                                        graph_cost, 0, tok->links);
+
+          // "changed" tells us whether the new token has a different
+          // cost from before, or is new [if so, add into queue].
+		  // 把新的token塞到队列里
+          if (changed && fst_->NumInputEpsilons(arc.nextstate) != 0)
+            queue_.push_back(e_new);
+        }
+      }
+    } // for all arcs
+  } // while queue not empty
+```
+
+总的来说, 解码的过程就是不断的ProcessEmiting 和ProcessNonEmiting沿着解码图把对应的acoustic weight 和 language weight 加一起	
+
+
+相关知识:
+-
+[加载am nnet]({% link _posts/kaldi/2020-10-08-kaldi-am-nn-read.md %})  
+[decodable->LogLikelihood函数是如何计算的]({% link _posts/kaldi/2020-10-08-nnet-decodable.md %})
