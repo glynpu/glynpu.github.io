@@ -42,6 +42,7 @@ cuda
 
 c++
 =
+[google code style](https://zh-google-styleguide.readthedocs.io/en/latest/google-cpp-styleguide/classes/)
 [cppinsights.io](https://cppinsights.io/)
 [gdbbolt.org](https://godbolt.org/)
 [stl 中的POD类型](https://zhuanlan.zhihu.com/p/250532934)
