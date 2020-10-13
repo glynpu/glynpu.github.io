@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  编辑距离python 版本
-date:   2020-10-01 23:05:00 +0800
+date:   2020-10-08 23:05:00 +0800
 <!-- categories: 他山之玉 --> 
 tag: kaldi
 ---

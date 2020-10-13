@@ -12,6 +12,7 @@ tag: 通用工具
 
 pytorch
 =
+[pytorch 转onnx](https://www.zdaiot.com/MLFrameworks/Pytorch/Pytorch%E5%AF%BC%E5%87%BAonnx%E6%A8%A1%E5%9E%8B/)
 [transformer 示例](https://github.com/NVIDIA/DeepLearningExamples/tree/master/PyTorch/Translation/Transformer)
 [20天吃掉那只pytorch](https://www.kesci.com/home/column/5f2ac5d8af3980002cb1bc08)
 [pytorch 计算图的实现](https://zhuanlan.zhihu.com/p/145353262)
@@ -94,6 +95,10 @@ leetocode
 [矩阵转置的意义](https://www.zhihu.com/question/38372986/answer/1461112350)
 [矩阵乘法的本质](https://www.zhihu.com/question/21351965/answer/728075625)
 
+
+code style
+=
+[不要写忍者代码](https://zh.javascript.info/ninja-code)
 
 vim
 =
