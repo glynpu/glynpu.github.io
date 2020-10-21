@@ -23,3 +23,5 @@ tag: c++
 
 4. libtorch是一个库，毕竟名字里都带lib了，c++调用了这个库就可以调用torchscript的解释器，就能够解析torchscript程序（注意神经网络模型也可以看作是一种程序）,或者说加载了神经网络模型
 
+
+5. [巨坑爹的view_as](https://github.com/espnet/espnet/blob/20b0c89369d9dd3e05780b65fdd00a9b4f4891e5/espnet/nets/pytorch_backend/transformer/attention.py#L156)
