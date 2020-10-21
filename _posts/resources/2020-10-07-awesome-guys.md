@@ -9,6 +9,7 @@ tag: 大牛博客
 * content
 {:toc}
 
-[scott meyers, effective c++ 作者](http://scottmeyers.blogspot.com/)
+[scott meyers, effective c++ 作者 博客](http://scottmeyers.blogspot.com/)
+[scott meyers, effective c++ 作者 个人网站](https://www.aristeia.com/)
 
 
