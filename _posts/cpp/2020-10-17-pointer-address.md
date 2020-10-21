@@ -49,3 +49,38 @@ int main() {
 0x7ffee42b9588
 0x7ffee42b958c
 ```
+
+然而并不是只有多继承才会导致这种现象，注意上面三个输出地址均不相同，下面把代码改为单继承:
+
+```
+#include <iostream>
+
+using namespace std;
+class Person {
+ public:
+  int age;
+};
+
+class Student : public Person {
+ public:
+  virtual void get_score() { cout << "Student rate function"; }
+
+ private:
+  int grade;
+};
+
+int main() {
+  Student s;
+  Person *p = &s;
+  cout << &s << endl;
+  cout << p << endl;
+}
+
+```
+
+程序输出为:
+
+```
+0x7ffe70f04370
+0x7ffe70f04378
+```
