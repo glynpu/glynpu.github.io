@@ -80,6 +80,7 @@ c
 [输入网址究竟发生了什么](https://zhuanlan.zhihu.com/p/189456570)
 [tcp/ip 协议](https://zhuanlan.zhihu.com/p/147370653)
 [c语言的坑](https://zhuanlan.zhihu.com/p/260066382)
+[c语言史上最愚蠢的bug](https://coolshell.cn/articles/5388.html)
 
 leetocode
 =
