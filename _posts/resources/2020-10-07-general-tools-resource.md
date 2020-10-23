@@ -81,6 +81,7 @@ c
 [tcp/ip 协议](https://zhuanlan.zhihu.com/p/147370653)
 [c语言的坑](https://zhuanlan.zhihu.com/p/260066382)
 [c语言史上最愚蠢的bug](https://coolshell.cn/articles/5388.html)
+[the most stupoid c bug ever](http://www.elpauer.org/2011/08/the-most-stupid-c-bug-ever/)
 
 leetocode
 =
